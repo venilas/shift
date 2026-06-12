@@ -1,0 +1,27 @@
+services:
+  test-database:
+    image: postgres:17-alpine
+    container_name: test-shift-database
+    restart: unless-stopped
+    env_file:
+      - .env.test
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  test-app:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: test-app
+    depends_on:
+      - test-database
+    env_file:
+      - .env.test
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
