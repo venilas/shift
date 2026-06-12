@@ -1,8 +1,10 @@
 from datetime import date
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.config.settings import get_settings
 from src.models.booking import Booking
 from src.models.room import Room
 from src.models.slot import Slot
@@ -54,21 +56,23 @@ class RoomRepository:
         result = await self.session.execute(query)
         return result.scalar() or 0
 
-    async def get_slots(self, room_id: int, date: date) -> list[dict]:
-        query = select(Slot).where(Slot.room_id == room_id).order_by(Slot.start_time)
-        query_ = (
+    async def get_slots(self, room_id: int, date_in: date) -> list[dict]:
+        slot_query = (
+            select(Slot).where(Slot.room_id == room_id).order_by(Slot.start_time)
+        )
+        booking_query = (
             select(Booking)
             .where(
                 Booking.room_id == room_id,
-                func.date(Booking.start_time) == date,
+                func.date(Booking.start_time) == date_in,
             )
             .order_by(Booking.start_time)
         )
-        result = await self.session.execute(query)
-        result_ = await self.session.execute(query_)
+        slot_result = await self.session.execute(slot_query)
+        booking_result = await self.session.execute(booking_query)
 
-        slots = result.scalars().all()
-        bookings = result_.scalars().all()
+        slots = slot_result.scalars().all()
+        bookings = booking_result.scalars().all()
 
         if not bookings:
             return [
@@ -79,11 +83,15 @@ class RoomRepository:
                 for slot in slots
             ]
 
+        tz = ZoneInfo(key=get_settings().TIMEZONE)
         free = []
         for slot in slots:
             current = slot.start_time
 
             for booking in bookings:
+                booking.start_time = booking.start_time.astimezone(tz=tz)
+                booking.end_time = booking.end_time.astimezone(tz=tz)
+
                 if (
                     booking.end_time.time() <= slot.start_time
                     or booking.start_time.time() >= slot.end_time

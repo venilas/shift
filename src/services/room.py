@@ -42,11 +42,11 @@ class RoomService:
     async def get_room_availability(
         self,
         room_id: int,
-        date: date,
+        date_in: date,
     ) -> list[SlotAvailability]:
         await self.get_room_by_id(room_id)
 
-        slots = await self.room_repo.get_slots(room_id, date)
+        slots = await self.room_repo.get_slots(room_id, date_in)
         return [SlotAvailability(**slot) for slot in slots]
 
     async def get_room_by_id(self, room_id: int) -> RoomResponse:

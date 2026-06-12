@@ -37,7 +37,7 @@ async def get_rooms(
 @router.get("/{room_id}/availability")
 async def get_room_availability(
     room_id: int,
-    date: date = Query(
+    date_in: date = Query(
         ...,
         description="Date in ISO format (YYYY-MM-DD)",
         examples=[date.today().strftime("%Y-%m-%d")],
@@ -49,8 +49,8 @@ async def get_room_availability(
     tz = ZoneInfo(key=get_settings().TIMEZONE)
     today = datetime.now(tz=tz).date()
 
-    if date < today:
+    if date_in < today:
         raise DateInPastException()
 
-    slots = await room_service.get_room_availability(room_id, date)
+    slots = await room_service.get_room_availability(room_id, date_in)
     return SlotListAvailability(slots=slots)

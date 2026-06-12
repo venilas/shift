@@ -339,7 +339,7 @@ async def test_get_room_availability_uncorrect_date(
     response = await room_api.get_availability(
         auth_data_user,
         room_id=1,
-        date="2026-06-01",
+        date_in="2026-06-01",
     )
     data = response.json()
 

@@ -66,14 +66,14 @@ class RoomAPI(BaseAPIClient):
         self,
         auth_data: dict,
         room_id: int,
-        date: str | None = None,
+        date_in: str | None = None,
     ) -> Response:
 
-        if date is None:
-            date = self._get_msc_date().strftime("%Y-%m-%d")
+        if date_in is None:
+            date_in = self._get_msc_date().strftime("%Y-%m-%d")
 
         return await self.client.get(
             f"/api/v1/rooms/{room_id}/availability",
             headers=self._auth_headers(auth_data),
-            params=self._build_params(date=date),
+            params=self._build_params(date_in=date_in),
         )
