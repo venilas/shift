@@ -19,11 +19,62 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down...")
 
 
+tags_metadata = [
+    {
+        "name": "Authentication",
+        "description": "Регистрация и авторизация пользователей",
+    },
+    {
+        "name": "Rooms",
+        "description": "Работа с комнатами",
+    },
+    {
+        "name": "Bookings",
+        "description": "Создание и управление бронированиями",
+    },
+    {
+        "name": "Admin Slots",
+        "description": "Методы администратора для управления слотами комнаты",
+    },
+    {
+        "name": "Admin Rooms",
+        "description": "Методы администратора для управления комнатами",
+    },
+    {
+        "name": "Admin Bookings",
+        "description": "Методы администратора для управления бронированиями",
+    },
+    {
+        "name": "Admin Users",
+        "description": "Методы администратора для управления пользователями",
+    },
+]
+
 app = FastAPI(
+    version="1.0.0",
     openapi_url="/api/openapi.json",
+    openapi_tags=tags_metadata,
     docs_url="/api/docs",
     redoc_url="/api/redoc",
     lifespan=lifespan,
+    description="""
+## Authentication
+
+Используйте Bearer Token:
+
+Authorization: Bearer `<token>`
+
+---
+
+## Роли
+
+- User
+- Admin
+    """,
+    contact={
+        "name": "Ilyas Aminev",
+        "email": "ilyasaminev3@mail.ru",
+    },
 )
 
 app.add_middleware(
