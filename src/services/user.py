@@ -1,6 +1,8 @@
-from fastapi import HTTPException, status
-
-from src.core.exceptions.user import ForbiddenException, UserNotFoundException
+from src.core.exceptions.user import (
+    ForbiddenException,
+    LoginAlreadyRegisteredException,
+    UserNotFoundException,
+)
 from src.core.security import security_service
 from src.db.repositories.user import UserRepository
 from src.models.enums import UserRole
@@ -13,16 +15,14 @@ class UserService:
 
     async def create_user(self, user_in: UserCreate) -> UserResponse:
         if await self.user_repo.exists_by_login(user_in.login):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Login already registered",
-            )
+            raise LoginAlreadyRegisteredException()
 
         user_data = user_in.model_dump(exclude={"password"})
         user_data["hashed_password"] = security_service.get_password_hash(
             user_in.password
         )
         user = await self.user_repo.create(user_data)
+
         return UserResponse.model_validate(user)
 
     async def get_user_by_id(self, user_id: int) -> UserResponse:

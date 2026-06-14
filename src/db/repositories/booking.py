@@ -1,14 +1,23 @@
-from datetime import datetime
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
-from sqlalchemy import delete, exists, select
+from sqlalchemy import delete, exists, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.config.settings import get_settings
 from src.models.booking import Booking
 
 
 class BookingRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
+
+    async def create(self, booking_in: dict) -> Booking:
+        booking = Booking(**booking_in)
+        self.session.add(booking)
+        await self.session.flush()
+        await self.session.refresh(booking)
+        return booking
 
     async def is_booking_available(
         self,
@@ -33,28 +42,16 @@ class BookingRepository:
         result = await self.session.execute(query)
         return not result.scalar()
 
-    async def create(self, booking_in: dict) -> Booking:
-        booking = Booking(**booking_in)
-        self.session.add(booking)
-        await self.session.flush()
-        await self.session.refresh(booking)
-        return booking
-
     async def get_by_id(self, booking_id: int) -> Booking | None:
         query = select(Booking).where(Booking.id == booking_id)
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
-    async def delete(self, booking_id: int) -> None:
-        query = delete(Booking).where(Booking.id == booking_id)
-        await self.session.execute(query)
-        await self.session.commit()
-
-    async def get_bookings(
+    async def get_multi(
         self,
         room_id: int | None,
         user_id: int | None,
-        date: datetime | None,
+        date_in: date | None,
     ) -> list[Booking]:
         query = select(Booking).order_by(Booking.start_time)
 
@@ -64,10 +61,13 @@ class BookingRepository:
         if user_id:
             query = query.where(Booking.user_id == user_id)
 
-        if date:
-            query = query.where(Booking.end_time > date)
-        # else:
-        #     query = query.where(Booking.end_time > datetime.now(UTC))
+        if date_in:
+            query = query.where(func.date(Booking.end_time) >= date_in)
+        else:
+            tz = ZoneInfo(key=get_settings().TIMEZONE)
+            today = datetime.now(tz=tz).date()
+
+            query = query.where(func.date(Booking.end_time) == today)
 
         result = await self.session.execute(query)
         return list(result.scalars().all())
@@ -84,3 +84,8 @@ class BookingRepository:
         self.session.add(booking)
         await self.session.flush()
         return booking
+
+    async def delete(self, booking_id: int) -> None:
+        query = delete(Booking).where(Booking.id == booking_id)
+        await self.session.execute(query)
+        await self.session.commit()

@@ -6,8 +6,9 @@ from sqlalchemy.exc import SQLAlchemyError
 from src.core.exceptions.base import MyBaseException
 from src.core.exceptions.booking import (
     BookingException,
-    BookingNotAvailableException,
     BookingNotFoundException,
+    BookingOutsideSlotException,
+    BookingOverlapException,
 )
 from src.core.exceptions.common import (
     CrossDayBookingException,
@@ -18,13 +19,16 @@ from src.core.exceptions.common import (
 )
 from src.core.exceptions.room import RoomException, RoomNotFoundException
 from src.core.exceptions.slot import (
-    BookingsOutsideNewSlotException,
+    SlotContainsBookingsException,
     SlotException,
-    SlotNotAvailableException,
     SlotNotFoundException,
+    SlotOverlapException,
 )
 from src.core.exceptions.user import (
     ForbiddenException,
+    IncorrectLoginOrPassword,
+    InvalidTokenException,
+    LoginAlreadyRegisteredException,
     UserException,
     UserNotFoundException,
 )
@@ -38,7 +42,7 @@ def room_exception_handler(exc: RoomException) -> JSONResponse:
 
     if isinstance(exc, RoomNotFoundException):
         status_code = status.HTTP_404_NOT_FOUND
-        detail = "Room is not found"
+        detail = "Room not found"
 
     return JSONResponse(
         status_code=status_code,
@@ -52,13 +56,15 @@ def slot_exception_handler(exc: SlotException) -> JSONResponse:
 
     if isinstance(exc, SlotNotFoundException):
         status_code = status.HTTP_404_NOT_FOUND
-        detail = "Slot is not found"
+        detail = "Slot not found"
 
-    elif isinstance(exc, SlotNotAvailableException):
-        detail = "Slot is not available"
+    elif isinstance(exc, SlotOverlapException):
+        status_code = status.HTTP_409_CONFLICT
+        detail = "Slot overlaps with another slot"
 
-    elif isinstance(exc, BookingsOutsideNewSlotException):
-        detail = "Bookings would be outside new slot range"
+    elif isinstance(exc, SlotContainsBookingsException):
+        status_code = status.HTTP_409_CONFLICT
+        detail = "Slot cannot be updated because existing bookings would be outside new range"
 
     return JSONResponse(
         status_code=status_code,
@@ -72,10 +78,15 @@ def booking_exception_handler(exc: BookingException) -> JSONResponse:
 
     if isinstance(exc, BookingNotFoundException):
         status_code = status.HTTP_404_NOT_FOUND
-        detail = "Booking is not found"
-    elif isinstance(exc, BookingNotAvailableException):
-        status_code = status.HTTP_400_BAD_REQUEST
-        detail = "Booking is not available"
+        detail = "Booking not found"
+
+    elif isinstance(exc, BookingOutsideSlotException):
+        status_code = status.HTTP_409_CONFLICT
+        detail = "Booking must be inside room slot"
+
+    elif isinstance(exc, BookingOverlapException):
+        status_code = status.HTTP_409_CONFLICT
+        detail = "Booking overlaps with another booking"
 
     return JSONResponse(status_code=status_code, content={"detail": detail})
 
@@ -86,24 +97,41 @@ def user_exception_handler(exc: UserException) -> JSONResponse:
 
     if isinstance(exc, UserNotFoundException):
         status_code = status.HTTP_404_NOT_FOUND
-        detail = "User is not found"
+        detail = "User not found"
+
     elif isinstance(exc, ForbiddenException):
         status_code = status.HTTP_403_FORBIDDEN
         detail = str(exc.args[0])
+    elif isinstance(exc, InvalidTokenException):
+        status_code = status.HTTP_401_UNAUTHORIZED
+        detail = "Invalid token"
+    elif isinstance(exc, LoginAlreadyRegisteredException):
+        status_code = status.HTTP_409_CONFLICT
+        detail = "Login already registered"
+    elif isinstance(exc, IncorrectLoginOrPassword):
+        status_code = status.HTTP_401_UNAUTHORIZED
+        detail = "Incorrect login or password"
 
-    return JSONResponse(status_code=status_code, content={"detail": detail})
+    return JSONResponse(
+        status_code=status_code,
+        content={"detail": detail},
+    )
 
 
 async def my_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
     detail = str(exc)
 
     if isinstance(exc, MyBaseException):
         if isinstance(exc, RoomException):
             return room_exception_handler(exc)
+
         elif isinstance(exc, SlotException):
             return slot_exception_handler(exc)
+
         elif isinstance(exc, BookingException):
             return booking_exception_handler(exc)
+
         elif isinstance(exc, UserException):
             return user_exception_handler(exc)
 
@@ -120,10 +148,11 @@ async def my_exception_handler(request: Request, exc: Exception) -> JSONResponse
             detail = "Time must be in 5 minutes increments"
 
         elif isinstance(exc, DateInPastException):
+            status_code = status.HTTP_400_BAD_REQUEST
             detail = "Date in the past"
 
     return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        status_code=status_code,
         content={"detail": detail},
     )
 

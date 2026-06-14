@@ -52,7 +52,6 @@ class BookingResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    user_id: int
     room_id: int
     start_time: datetime
     end_time: datetime
@@ -68,8 +67,16 @@ class BookingResponse(BaseModel):
         return self
 
 
+class BookingAdminResponse(BookingResponse):
+    user_id: int
+
+
 class BookingListResponse(BaseModel):
     bookings: list[BookingResponse]
+
+
+class BookingAdminListResponse(BaseModel):
+    bookings: list[BookingAdminResponse]
 
 
 class BookingUpdate(BaseModel):

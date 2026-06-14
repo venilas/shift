@@ -9,9 +9,9 @@ class SlotNotFoundException(SlotException):
     pass
 
 
-class SlotNotAvailableException(SlotException):
+class SlotOverlapException(SlotException):
     pass
 
 
-class BookingsOutsideNewSlotException(SlotException):
+class SlotContainsBookingsException(SlotException):
     pass

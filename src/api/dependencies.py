@@ -1,7 +1,8 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.exceptions.user import ForbiddenException, InvalidTokenException
 from src.core.security import security_service
 from src.db.repositories.booking import BookingRepository
 from src.db.repositories.room import RoomRepository
@@ -43,52 +44,32 @@ async def get_current_user(
     payload = security_service.decode_token(token)
 
     if not payload or payload.get("type") != "access":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-        )
+        raise InvalidTokenException()
 
     user_id = payload.get("sub")
     if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-        )
+        raise InvalidTokenException()
 
     try:
         user = await user_repo.get_by_id(int(user_id))
     except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-        )
+        raise InvalidTokenException()
 
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-        )
+        raise InvalidTokenException()
 
     return user
 
 
 async def get_current_admin(current_user: User = Depends(get_current_user)) -> User:
     if current_user.role != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Forbidden",
-        )
+        raise ForbiddenException("Forbidden")
+
     return current_user
 
 
 async def get_room_repo(session: AsyncSession = Depends(get_db)) -> RoomRepository:
     return RoomRepository(session)
-
-
-async def get_room_service(
-    room_repo: RoomRepository = Depends(get_room_repo),
-) -> RoomService:
-    return RoomService(room_repo)
 
 
 async def get_booking_repo(
@@ -101,14 +82,39 @@ async def get_slot_repo(session: AsyncSession = Depends(get_db)) -> SlotReposito
     return SlotRepository(session)
 
 
+async def get_room_service(
+    room_repo: RoomRepository = Depends(get_room_repo),
+    slot_repo: SlotRepository = Depends(get_slot_repo),
+    booking_repo: BookingRepository = Depends(get_booking_repo),
+) -> RoomService:
+    return RoomService(
+        room_repo=room_repo,
+        slot_repo=slot_repo,
+        booking_repo=booking_repo,
+    )
+
+
 async def get_booking_service(
     booking_repo: BookingRepository = Depends(get_booking_repo),
+    room_repo: RoomRepository = Depends(get_room_repo),
     slot_repo: SlotRepository = Depends(get_slot_repo),
+    user_repo: UserRepository = Depends(get_user_repo),
 ) -> BookingService:
-    return BookingService(booking_repo, slot_repo)
+    return BookingService(
+        booking_repo=booking_repo,
+        room_repo=room_repo,
+        slot_repo=slot_repo,
+        user_repo=user_repo,
+    )
 
 
 async def get_slot_service(
-    service_repo: SlotRepository = Depends(get_slot_repo),
+    slot_repo: SlotRepository = Depends(get_slot_repo),
+    room_repo: RoomRepository = Depends(get_room_repo),
+    booking_repo: BookingRepository = Depends(get_booking_repo),
 ) -> SlotService:
-    return SlotService(service_repo)
+    return SlotService(
+        slot_repo=slot_repo,
+        room_repo=room_repo,
+        booking_repo=booking_repo,
+    )

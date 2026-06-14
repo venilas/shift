@@ -9,5 +9,9 @@ class BookingNotFoundException(BookingException):
     pass
 
 
-class BookingNotAvailableException(BookingException):
+class BookingOverlapException(BookingException):
+    pass
+
+
+class BookingOutsideSlotException(BookingException):
     pass

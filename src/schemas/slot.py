@@ -67,3 +67,7 @@ class SlotResponse(BaseModel):
     room_id: int
     start_time: time
     end_time: time
+
+
+class SlotListResponse(BaseModel):
+    slots: list[SlotResponse]

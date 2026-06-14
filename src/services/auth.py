@@ -1,5 +1,4 @@
-from fastapi import HTTPException, status
-
+from src.core.exceptions.user import IncorrectLoginOrPassword
 from src.core.security import security_service
 from src.db.repositories.user import UserRepository
 from src.schemas.auth import LoginRequest, Token
@@ -22,13 +21,10 @@ class AuthService:
             login_data.password,
             user.hashed_password,
         ):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Incorrect login or password",
-            )
+            raise IncorrectLoginOrPassword()
 
         return self._create_token(UserResponse.model_validate(user))
 
     @staticmethod
     def _create_token(user: UserResponse) -> Token:
-        return Token(access_token=security_service.create_access_token(str(user.id)))
+        return Token(access_token=security_service.create_access_token(user.id))
