@@ -65,10 +65,7 @@ async def test_delete_bookings_user(
     booking = await BookingFactory.create(db_session, user_id, room.id)
 
     msc_datetime = BaseFactory._get_msc_datetime()
-    response = await booking_api.get_multi(
-        auth_data_admin,
-        date=msc_datetime.replace(hour=0, minute=0, second=0),
-    )
+    response = await booking_api.get_multi(auth_data_admin, date_in=msc_datetime.date())
     data = response.json()
 
     assert response.status_code == status.HTTP_200_OK
@@ -89,10 +86,7 @@ async def test_delete_bookings_user(
 
     assert response.status_code == status.HTTP_204_NO_CONTENT
 
-    response = await booking_api.get_multi(
-        auth_data_admin,
-        date=msc_datetime.replace(hour=0, minute=0, second=0),
-    )
+    response = await booking_api.get_multi(auth_data_admin, date_in=msc_datetime.date())
     data = response.json()
 
     assert data == {"bookings": []}
@@ -106,7 +100,7 @@ async def test_get_user_admin_invalid_user(client: AsyncClient, auth_data_admin:
     data = response.json()
 
     assert response.status_code == status.HTTP_404_NOT_FOUND
-    assert data["detail"] == "User is not found"
+    assert data["detail"] == "User not found"
 
 
 @pytest.mark.asyncio
@@ -120,7 +114,7 @@ async def test_delete_user_admin_invalid_user(
     data = response.json()
 
     assert response.status_code == status.HTTP_404_NOT_FOUND
-    assert data["detail"] == "User is not found"
+    assert data["detail"] == "User not found"
 
 
 @pytest.mark.asyncio

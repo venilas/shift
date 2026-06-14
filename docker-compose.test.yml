@@ -5,6 +5,8 @@ services:
     restart: unless-stopped
     env_file:
       - .env.test
+    volumes:
+      - testpgdata:/var/lib/postgresql/data
     logging:
       driver: "json-file"
       options:
@@ -25,3 +27,6 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+volumes:
+  testpgdata:

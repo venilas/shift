@@ -19,7 +19,6 @@ async def test_create_booking(
     auth_data_user: dict,
 ):
     booking_api = BookingAPI(client)
-    user_id = BaseFactory._get_user_id(auth_data_user)
 
     room = await RoomFactory.create(db_session)
     await SlotFactory.create(db_session, room.id)
@@ -30,7 +29,6 @@ async def test_create_booking(
 
     assert data == {
         "id": data["id"],
-        "user_id": user_id,
         "room_id": room.id,
         "start_time": BaseFactory._response_strftime_time(
             msc_datetime.replace(
@@ -74,11 +72,7 @@ async def test_get_bookings_admin_after_filling(
     room = await RoomFactory.create(db_session)
     await SlotFactory.create(db_session, room.id)
 
-    booking = await BookingFactory.create(
-        db_session,
-        user_id=user_id,
-        room_id=room.id,
-    )
+    booking = await BookingFactory.create(db_session, user_id, room.id)
 
     response = await booking_api.get_multi(auth_data_admin)
     data = response.json()
@@ -111,7 +105,7 @@ async def test_get_room_bookings_admin_after_filling(
     await SlotFactory.create(db_session, room.id)
     booking = await BookingFactory.create(db_session, user_id, room.id)
 
-    response = await booking_api.get_multi(auth_data_admin, room_id=room.id)
+    response = await booking_api.get_multi(auth_data_admin, room.id)
     data = response.json()
 
     assert response.status_code == status.HTTP_200_OK
@@ -175,9 +169,7 @@ async def test_get_date_bookings_admin_after_filling(
 
     response = await booking_api.get_multi(
         auth_data_admin,
-        date=BaseFactory._strftime_time(
-            BaseFactory._get_msc_datetime().replace(hour=0, minute=0)
-        ),
+        date_in=BaseFactory._get_msc_datetime().date(),
     )
     data = response.json()
 
@@ -272,7 +264,6 @@ async def test_get_booking(
         "bookings": [
             {
                 "id": booking.id,
-                "user_id": user_id,
                 "room_id": room.id,
                 "start_time": BaseFactory._response_strftime_time(booking.start_time),
                 "end_time": BaseFactory._response_strftime_time(booking.end_time),
@@ -295,7 +286,7 @@ async def test_get_room_booking(
     await SlotFactory.create(db_session, room.id)
     booking = await BookingFactory.create(db_session, user_id, room.id)
 
-    response = await booking_api.get_multi_user(auth_data_user, room_id=room.id)
+    response = await booking_api.get_multi_user(auth_data_user, room.id)
 
     data = response.json()
 
@@ -304,7 +295,6 @@ async def test_get_room_booking(
         "bookings": [
             {
                 "id": booking.id,
-                "user_id": user_id,
                 "room_id": room.id,
                 "start_time": BaseFactory._response_strftime_time(booking.start_time),
                 "end_time": BaseFactory._response_strftime_time(booking.end_time),
@@ -340,7 +330,6 @@ async def test_update_booking(
 
     assert data == {
         "id": booking.id,
-        "user_id": user_id,
         "room_id": room.id,
         "start_time": BaseFactory._response_strftime_time(booking.start_time),
         "end_time": BaseFactory._response_strftime_time(new_end_time),
@@ -378,7 +367,7 @@ async def test_get_bookings_admin_invalid_user(
     data = response.json()
 
     assert response.status_code == status.HTTP_404_NOT_FOUND
-    assert data["detail"] == "User is not found"
+    assert data["detail"] == "User not found"
 
 
 @pytest.mark.asyncio
@@ -392,7 +381,7 @@ async def test_get_bookings_admin_invalid_room(
     data = response.json()
 
     assert response.status_code == status.HTTP_404_NOT_FOUND
-    assert data["detail"] == "Room is not found"
+    assert data["detail"] == "Room not found"
 
 
 @pytest.mark.asyncio
@@ -406,7 +395,7 @@ async def test_delete_booking_admin_invalid_booking(
     data = response.json()
 
     assert response.status_code == status.HTTP_404_NOT_FOUND
-    assert data["detail"] == "Booking is not found"
+    assert data["detail"] == "Booking not found"
 
 
 @pytest.mark.asyncio
@@ -465,7 +454,7 @@ async def test_create_booking_invalid_room(
     data = response.json()
 
     assert response.status_code == status.HTTP_404_NOT_FOUND
-    assert data["detail"] == "Room is not found"
+    assert data["detail"] == "Room not found"
 
 
 @pytest.mark.asyncio
@@ -487,8 +476,8 @@ async def test_create_booking_slot_not_available(
 
     data = response.json()
 
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert data["detail"] == "Slot is not available"
+    assert response.status_code == status.HTTP_409_CONFLICT
+    assert data["detail"] == "Booking must be inside room slot"
 
 
 @pytest.mark.asyncio
@@ -517,8 +506,8 @@ async def test_create_booking_not_available(
     )
     data = response.json()
 
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert data["detail"] == "Booking is not available"
+    assert response.status_code == status.HTTP_409_CONFLICT
+    assert data["detail"] == "Booking overlaps with another booking"
 
 
 @pytest.mark.asyncio
@@ -607,6 +596,20 @@ async def test_create_booking_least_5_minutes(
 
 
 @pytest.mark.asyncio
+async def test_get_bookings_invalid_room(
+    client: AsyncClient,
+    auth_data_user: dict,
+):
+    booking_api = BookingAPI(client)
+
+    response = await booking_api.get_multi_user(auth_data_user, room_id=1_000)
+    data = response.json()
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert data["detail"] == "Room not found"
+
+
+@pytest.mark.asyncio
 async def test_get_bookings_not_admin(client: AsyncClient, auth_data_user: dict):
     booking_api = BookingAPI(client)
 
@@ -640,7 +643,7 @@ async def test_update_alien_booking(
     data = response.json()
 
     assert response.status_code == status.HTTP_403_FORBIDDEN
-    assert data["detail"] == "Not authorized to update this booking"
+    assert data["detail"] == "Not permission to update this booking"
 
 
 @pytest.mark.asyncio
@@ -661,7 +664,7 @@ async def test_update_booking_invalid_room(
     data = response.json()
 
     assert response.status_code == status.HTTP_404_NOT_FOUND
-    assert data["detail"] == "Room is not found"
+    assert data["detail"] == "Room not found"
 
 
 @pytest.mark.asyncio
@@ -687,8 +690,8 @@ async def test_update_booking_not_slot_available(
     )
     data = response.json()
 
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert data["detail"] == "Slot is not available"
+    assert response.status_code == status.HTTP_409_CONFLICT
+    assert data["detail"] == "Booking must be inside room slot"
 
 
 @pytest.mark.asyncio
@@ -722,8 +725,8 @@ async def test_update_booking_not_available(
     )
     data = response.json()
 
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert data["detail"] == "Booking is not available"
+    assert response.status_code == status.HTTP_409_CONFLICT
+    assert data["detail"] == "Booking overlaps with another booking"
 
 
 @pytest.mark.asyncio
@@ -840,7 +843,7 @@ async def test_delete_alien_booking(
     data = response.json()
 
     assert response.status_code == status.HTTP_403_FORBIDDEN
-    assert data["detail"] == "Not authorized to delete this booking"
+    assert data["detail"] == "Not permission to delete this booking"
 
 
 @pytest.mark.asyncio
@@ -854,4 +857,4 @@ async def test_delete_booking_invalid_room(
     data = response.json()
 
     assert response.status_code == status.HTTP_404_NOT_FOUND
-    assert data["detail"] == "Booking is not found"
+    assert data["detail"] == "Booking not found"

@@ -12,8 +12,8 @@ from src.db.session import get_db
 from src.main import app
 from src.models.enums import UserRole
 
-from .test_api.api.auth import AuthAPI
-from .test_api.factories.user import UserFactory
+from .integration.api.auth import AuthAPI
+from .integration.factories.user import UserFactory
 
 TEST_DATABASE_URL = get_settings().DATABASE_URL
 

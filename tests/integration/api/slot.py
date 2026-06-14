@@ -30,6 +30,12 @@ class SlotAPI(BaseAPIClient):
             ),
         )
 
+    async def get(self, auth_data: dict, room_id: int) -> Response:
+        return await self.client.get(
+            f"/api/v1/admin/slots/{room_id}",
+            headers=self._auth_headers(auth_data),
+        )
+
     async def update(
         self,
         auth_data: dict,

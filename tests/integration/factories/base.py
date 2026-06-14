@@ -21,10 +21,6 @@ class BaseFactory:
         return date_in.astimezone(tz=tz).strftime("%Y-%m-%dT%H:%M:%S+03:00")
 
     @staticmethod
-    def _strftime_time(date: datetime) -> str:
-        return date.strftime("%Y-%m-%d %H:%M")
-
-    @staticmethod
     def _get_user_id(auth_data: dict) -> int:
         token = auth_data["access_token"]
         user = security_service.decode_token(token)

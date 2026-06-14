@@ -14,8 +14,8 @@ class BookingFactory:
         return datetime.now(tz=tz)
 
     @staticmethod
-    def _get_time(old_date: datetime, hour: int, minute: int) -> datetime:
-        return old_date.replace(
+    def _get_time(date_in: datetime, hour: int, minute: int) -> datetime:
+        return date_in.replace(
             hour=hour,
             minute=minute,
             second=0,

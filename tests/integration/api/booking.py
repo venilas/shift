@@ -40,7 +40,7 @@ class BookingAPI(BaseAPIClient):
         auth_data: dict,
         room_id: int | None = None,
         user_id: int | None = None,
-        date: str | None = None,
+        date_in: str | None = None,
     ) -> Response:
         return await self.client.get(
             "/api/v1/admin/bookings/",
@@ -48,7 +48,7 @@ class BookingAPI(BaseAPIClient):
             params=self._build_params(
                 room_id=room_id,
                 user_id=user_id,
-                date=date,
+                date_in=date_in,
             ),
         )
 
